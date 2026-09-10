@@ -237,3 +237,65 @@ st.plotly_chart(fig5, use_container_width=True)
 
 # 5. 그래프 아래에 분석 내용을 적을 자리 만들기
 st.info("💡 이 그래프로 알 수 있는 것: (예: 월별 총 관객수를 비교하여 여름 휴가철이나 설/추석 연휴, 연말 등 극장가의 대표적인 성수기 달과 비성수기 달의 차이를 한눈에 확인할 수 있습니다.)")
+
+
+
+
+
+# ---------------------------------------------------------
+# [9. 여섯 번째 그래프: 월(주차별) × 요일별 캘린더 히트맵]
+# ---------------------------------------------------------
+
+st.divider() # 구역을 나누는 가로줄 긋기
+
+st.subheader("🗓️ 6. 월(주차) 및 요일별 관객수 캘린더 히트맵")
+
+# 1. 기준일자별 전체 관객수 합계 계산
+daily_total_hm = df.groupby('기준일자')['해당일관객수'].sum().reset_index()
+
+# 2. 날짜 데이터 전처리 (연월, 월별 주차, 요일, yyyy-mm-dd 문자열)
+daily_total_hm['연월'] = daily_total_hm['기준일자'].dt.strftime('%Y-%m')
+
+# (day - 1) // 7 + 1 공식을 활용해 월별 1주차~5주차 구분
+daily_total_hm['주차'] = ((daily_total_hm['기준일자'].dt.day - 1) // 7 + 1).astype(str) + '주차'
+daily_total_hm['연월_주차'] = daily_total_hm['연월'] + ' ' + daily_total_hm['주차']
+
+# 요일 이름 추출 및 월요일~일요일 순서 지정
+days_ko = ['월', '화', '수', '목', '금', '토', '일']
+daily_total_hm['요일'] = daily_total_hm['기준일자'].dt.weekday.map(lambda x: days_ko[x])
+
+# 마우스 올렸을 때(호버) 표시할 yyyy-mm-dd 형태의 날짜 문자열
+daily_total_hm['날짜_str'] = daily_total_hm['기준일자'].dt.strftime('%Y-%m-%d')
+
+# 3. 히트맵용 피벗 테이블(2차원 행렬) 생성
+# 행: 연월_주차, 열: 요일, 값: 해당일관객수 / 날짜문자열
+pivot_df = daily_total_hm.pivot(index='연월_주차', columns='요일', values='해당일관객수')
+pivot_date = daily_total_hm.pivot(index='연월_주차', columns='요일', values='날짜_str')
+
+# 요일 컬럼 순서를 '월'부터 '일'까지 강제 재정렬
+pivot_df = pivot_df.reindex(columns=days_ko)
+pivot_date = pivot_date.reindex(columns=days_ko)
+
+# 4. Plotly Heatmap 그리기
+fig6 = go.Figure(data=go.Heatmap(
+    z=pivot_df.values,
+    x=pivot_df.columns,
+    y=pivot_df.index,
+    text=pivot_date.values, # 마우스 툴팁에 보여줄 날짜(yyyy-mm-dd) 값 전달
+    hovertemplate='<b>날짜</b>: %{text}<br><b>요일</b>: %{x}요일<br><b>총 관객수</b>: %{z:,.0f}명<extra></extra>',
+    colorscale='Reds', # 관객수가 많을수록 진해지는 붉은색 스타일
+    colorbar=dict(title='관객수')
+))
+
+# 레이아웃 설정: 달력처럼 위에서 아래로 순서대로 정렬 (autorange='reversed')
+fig6.update_layout(
+    xaxis_title='요일',
+    yaxis_title='월(주차별)',
+    yaxis=dict(autorange='reversed')
+)
+
+# 5. 스트림릿 화면에 만들어진 히트맵 띄우기
+st.plotly_chart(fig6, use_container_width=True)
+
+# 6. 그래프 아래에 분석 내용을 적을 자리 만들기
+st.info("💡 이 그래프로 알 수 있는 것: (예: 월별/주차별/요일별 관객 분포를 달력 형태로 확인하여, 주말(토·일요일)에 관객이 몰리는 경향이나 특정 주차/명절 연휴에 관객수가 급증하는 패턴을 한눈에 파악할 수 있습니다.)")
