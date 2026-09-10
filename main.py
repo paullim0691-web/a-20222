@@ -1,142 +1,79 @@
-import datetime
-import requests
-import pandas as pd
 import streamlit as st
+import pandas as pd
+import plotly.express as px
 
-# Streamlit 기본 페이지 설정
-st.set_page_config(page_title="일별 박스오피스", layout="wide")
-
-st.title("🎬 일별 박스오피스 순위")
-
-# 1. 한국 시간(KST, UTC+9) 기준 어제 날짜 계산
-kst_timezone = datetime.timezone(datetime.timedelta(hours=9))
-now_in_kst = datetime.datetime.now(tz=kst_timezone)
-yesterday_in_kst = (now_in_kst - datetime.timedelta(days=1)).date()
-
-# 2. 날짜 선택 달력 (최대 선택 가능일: 어제)
-selected_date = st.date_input(
-    "📅 조회할 날짜를 선택해 주세요",
-    value=yesterday_in_kst,
-    max_value=yesterday_in_kst,
-    min_value=datetime.date(2004, 1, 1),
-    help="오늘 및 미래 날짜는 아직 집계 전이므로 선택할 수 없습니다."
-)
-
-target_date_str = selected_date.strftime("%Y%m%d")
-
-# 3. 데이터 수집 함수 (1시간 캐싱)
-@st.cache_data(ttl=3600)
-def get_box_office_data(target_dt):
-    if "KOBIS_KEY" not in st.secrets:
-        return None, "secrets.toml 또는 Cloud Secrets 설정에서 'KOBIS_KEY'를 찾을 수 없습니다."
-
-    api_key = st.secrets["KOBIS_KEY"]
-    url = "https://www.kobis.or.kr/kobisopenapi/webservice/rest/boxoffice/searchDailyBoxOfficeList.json"
+# ---------------------------------------------------------
+# [1. 데이터 불러오기 및 2. 날짜 전처리]
+# ---------------------------------------------------------
+# @st.cache_data 데코레이터: 데이터를 한 번만 불러와서 메모리에 저장(캐싱)합니다.
+# 앱을 조작할 때마다 파일을 다시 다운로드하지 않으므로 앱이 매우 빠릅니다.
+@st.cache_data
+def load_and_preprocess_data():
+    # 깃허브에 있는 CSV 파일 주소
+    url = "https://raw.githubusercontent.com/keep-growing-park/data-science/refs/heads/main/dataset/kobis_1year_boxoffice.csv"
     
-    params = {
-        "key": api_key,
-        "targetDt": target_dt
-    }
-
-    try:
-        response = requests.get(url, params=params, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-
-        # faultInfo 오류 상자 응답 처리
-        if "faultInfo" in data:
-            error_message = data["faultInfo"].get("message", "인증 오류가 발생했습니다.")
-            return None, f"KOBIS API 오류: {error_message}"
-
-        box_office_result = data.get("boxOfficeResult", {})
-        daily_list = box_office_result.get("dailyBoxOfficeList", [])
-
-        if not daily_list:
-            return None, "그날은 아직 집계 전입니다."
-
-        return daily_list, None
-
-    except requests.exceptions.RequestException:
-        # req_err를 직접 출력하면 URL에 포함된 KOBIS_KEY가 노출되므로 보안상 커스텀 문구만 반환합니다.
-        return None, "KOBIS 서버와 통신할 수 없습니다. 네트워크 상태나 DNS 연결을 확인해 주세요."
-    except Exception as err:
-        return None, f"데이터 처리 중 오류가 발생했습니다: {err}"
-
-# 4. 데이터 불러오기 및 예외 안내
-raw_data, error_msg = get_box_office_data(target_date_str)
-
-if error_msg:
-    if error_msg == "그날은 아직 집계 전입니다.":
-        st.info(f"💡 {error_msg}")
-    else:
-        st.error(error_msg)
-        st.warning(
-            "💡 **점검해 볼 사항:**\n"
-            "1. 배포 서버의 일시적인 네트워크/DNS 장애일 수 있으니 앱을 Reboot해 보세요.\n"
-            "2. Streamlit Secrets의 `KOBIS_KEY`가 올바른지 확인해 주세요.\n"
-            "3. KOBIS 오픈 API 마이페이지에서 키 상태를 점검해 보세요."
-        )
-else:
-    # 5. 데이터 가공
-    df = pd.DataFrame(raw_data)
-
-    numeric_columns = ["rank", "rankInten", "audiCnt", "audiAcc", "scrnCnt"]
-    for col in numeric_columns:
-        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
-
-    df = df.sort_values("rank").reset_index(drop=True)
-
-    # 순위 증감 화살표 가공
-    def format_rank_inten(val):
-        if val > 0:
-            return f"🔺 +{val}"
-        elif val < 0:
-            return f"🔹 {val}"
-        else:
-            return "-"
-
-    df["rank_change"] = df["rankInten"].apply(format_rank_inten)
-
-    # 100만 관객 이상 트로피 표시
-    def format_movie_name(row):
-        name = row["movieNm"]
-        if row["audiAcc"] >= 1_000_000:
-            return f"🏆 {name}"
-        return name
-
-    df["display_movie_nm"] = df.apply(format_movie_name, axis=1)
-
-    # 6. 1위 영화 지표 카드
-    top_1 = df.iloc[0]
-    st.subheader(f"🏆 1위 영화: {top_1['display_movie_nm']}")
+    # pandas를 사용해 CSV 파일을 표(데이터프레임) 형태로 불러오기
+    df = pd.read_csv(url)
     
-    col1, col2, col3 = st.columns(3)
-    col1.metric(label="당일 관객수", value=f"{top_1['audiCnt']:,} 명")
-    col2.metric(label="누적 관객수", value=f"{top_1['audiAcc']:,} 명")
-    col3.metric(label="스크린수", value=f"{top_1['scrnCnt']:,} 개")
-
-    st.markdown("---")
-
-    # 7. 관객수 상위 5편 막대그래프
-    st.subheader("📊 당일 관객수 상위 5편")
-    top5_df = df.head(5)[["movieNm", "audiCnt"]].set_index("movieNm")
-    st.bar_chart(top5_df)
-
-    st.markdown("---")
-
-    # 8. 박스오피스 순위 표
-    st.subheader(f"📋 {selected_date.strftime('%Y년 %m월 %d일')} 박스오피스 순위")
+    # 결측치(비어있는 값)가 있는 행 삭제하기
+    df = df.dropna()
     
-    table_df = df[["rank", "rank_change", "display_movie_nm", "openDt", "audiCnt", "audiAcc", "scrnCnt"]].copy()
-    table_df.columns = ["순위", "변동", "영화명", "개봉일", "관객수", "누적관객", "스크린수"]
+    # "기준일자" 컬럼을 글자에서 날짜(datetime) 형식으로 바꾸기
+    df['기준일자'] = pd.to_datetime(df['기준일자'])
+    
+    # 전체 데이터를 "기준일자" 순서대로(과거에서 최신순으로) 정렬하기
+    df = df.sort_values(by='기준일자')
+    
+    return df
 
-    st.dataframe(
-        table_df,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "관객수": st.column_config.NumberColumn(format="%d 명"),
-            "누적관객": st.column_config.NumberColumn(format="%d 명"),
-            "스크린수": st.column_config.NumberColumn(format="%d 개"),
-        }
-    )
+# 함수를 실행하여 데이터프레임(df) 가져오기
+df = load_and_preprocess_data()
+
+
+# ---------------------------------------------------------
+# 웹앱 화면 구성 시작
+# ---------------------------------------------------------
+st.title("🍿 박스오피스 영화 분석 앱")
+st.write("스트림릿과 Plotly를 활용한 데이터 시각화 대시보드입니다.")
+
+# ---------------------------------------------------------
+# [3. 영화 선택 기능]
+# ---------------------------------------------------------
+# '누적관객수'를 기준으로 영화명 정렬하기
+# 영화별로 가장 높은 누적관객수를 구한 뒤, 내림차순(큰 숫자부터)으로 정렬합니다.
+movie_max_audience = df.groupby('영화명')['누적관객수'].max().sort_values(ascending=False)
+
+# 정렬된 영화 이름들만 뽑아서 리스트로 만들기 (중복 없음)
+movie_list = movie_max_audience.index.tolist()
+
+# 화면에 드롭다운(선택 상자)을 만들고 사용자가 영화를 고르게 하기
+selected_movie = st.selectbox("분석할 영화를 선택해 주세요:", movie_list)
+
+# 사용자가 선택한 영화 데이터만 추려내기
+filtered_df = df[df['영화명'] == selected_movie]
+
+
+# ---------------------------------------------------------
+# [4. 선그래프 그리기 및 5. 구역 나누기]
+# ---------------------------------------------------------
+
+# 첫 번째 그래프 구역
+st.subheader(f"📈 1. '{selected_movie}' 일별 관객수 추이")
+
+# Plotly를 이용해 선 그래프 만들기 (x축: 기준일자, y축: 해당일관객수)
+fig1 = px.line(filtered_df, x='기준일자', y='해당일관객수', markers=True)
+
+# 스트림릿 화면에 만들어진 그래프 띄우기
+st.plotly_chart(fig1, use_container_width=True)
+
+# 그래프 아래에 분석 내용을 적을 자리 만들기
+st.info("💡 이 그래프로 알 수 있는 것: (이곳에 데이터 분석 결과나 인사이트를 한 문장으로 적어주세요.)")
+
+st.divider() # 구역을 나누는 가로줄 긋기
+
+# 두 번째 그래프 구역 (앞으로 추가할 자리)
+st.subheader("📊 2. (추가 분석 그래프 자리)")
+st.write("여기에 새로운 그래프(예: 누적관객수 변화, 다른 영화와의 비교 등)를 추가할 수 있습니다.")
+
+# 두 번째 그래프 아래에 분석 내용을 적을 자리 만들기
+st.info("💡 이 그래프로 알 수 있는 것: (이곳에 데이터 분석 결과나 인사이트를 한 문장으로 적어주세요.)")
