@@ -77,3 +77,33 @@ st.write("여기에 새로운 그래프(예: 누적관객수 변화, 다른 영�
 
 # 두 번째 그래프 아래에 분석 내용을 적을 자리 만들기
 st.info("💡 이 그래프로 알 수 있는 것: (이곳에 데이터 분석 결과나 인사이트를 한 문장으로 적어주세요.)")
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
+
+# 한글 폰트 설정 (깨짐 방지)
+plt.rc('font', family='Malgun Gothic') # 맥 사용자는 'AppleGothic'으로 변경
+
+# 1. 데이터 준비 (예시 데이터입니다. 실제 데이터프레임을 사용해 주세요)
+data = {
+    '기준일자': ['2023-12-01', '2023-12-02', '2023-12-03', '2023-12-04', '2023-12-05'],
+    '누적관객수': [150000, 450000, 800000, 920000, 1050000]
+}
+df = pd.DataFrame(data)
+
+# 2. 영역 차트(Area Chart) 그리기
+plt.figure(figsize=(10, 5))
+plt.fill_between(df['기준일자'], df['누적관객수'], color='skyblue', alpha=0.5)
+plt.plot(df['기준일자'], df['누적관객수'], color='dodgerblue', alpha=0.8, linewidth=2)
+
+# 3. 그래프 꾸미기
+plt.title('기준일자별 누적관객수 변화', fontsize=16, pad=15)
+plt.xlabel('기준일자', fontsize=12)
+plt.ylabel('누적관객수 (명)', fontsize=12)
+plt.xticks(rotation=45)
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+
+# 4. 출력
+plt.tight_layout()
+plt.show()
