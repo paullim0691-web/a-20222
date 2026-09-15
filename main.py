@@ -377,3 +377,61 @@ st.markdown(
 """,
     unsafe_allow_html=True,
 )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import plotly.express as px
+import streamlit as st
+
+# -----------------------------------------------------------------------------
+# 4. 개봉일 스크린수 vs 총 관객수 산점도
+# -----------------------------------------------------------------------------
+st.subheader("4. 🎯 개봉일 스크린수와 총 관객수의 관계 (산점도)")
+
+fig4 = px.scatter(
+    df,
+    x='first_scrn',
+    y='total_audi',
+    color='genre',  # 장르별 점 색상 구별
+    hover_name='movieNm',  # 마우스 호버 시 영화명 툴팁 표시
+    hover_data={'first_scrn': ':,', 'total_audi': ':,', 'genre': True},
+    labels={
+        'first_scrn': '개봉일 스크린수(개)',
+        'total_audi': '총 관객수(명)',
+        'genre': '장르',
+    },
+    title="개봉일 스크린수 대비 최종 총 관객수 관계",
+)
+
+# 점 크기 및 투명도 설정
+fig4.update_traces(marker=dict(size=9, opacity=0.8))
+
+fig4.update_layout(height=500, xaxis_tickformat=',', yaxis_tickformat=',')
+
+st.plotly_chart(fig4, use_container_width=True)
+
+# 인사이트 설명 문구
+st.markdown(
+    """
+<div class="insight-box">
+    <div class="insight-title">💡 이 그래프로 알 수 있는 것</div>
+    <div class="insight-text">
+        개봉일 스크린수가 많을수록 대체로 높은 총 관객수를 기록하는 양의 상관관계를 보입니다. 다만, 스크린수가 적음에도 높은 관객수를 달성한 입소문 흥행작이나 반대로 초기 스크린 확보 대비 총 관객수가 적은 영화 등 장르별/작품별 흥행 효율성의 차이를 직관적으로 비교할 수 있습니다.
+    </div>
+</div>
+""",
+    unsafe_allow_html=True,
+)
