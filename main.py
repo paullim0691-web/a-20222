@@ -481,3 +481,77 @@ st.markdown(
 """,
     unsafe_allow_html=True,
 )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import plotly.express as px
+import streamlit as st
+
+# -----------------------------------------------------------------------------
+# 6. 개봉일 스크린수 vs 총 관객수 (버블 크기: 개봉 첫 주 관객수)
+# -----------------------------------------------------------------------------
+st.subheader("6. 🫧 개봉일 스크린수와 총 관객수의 관계 (버블 크기: 개봉 첫 주 관객수)")
+
+fig6 = px.scatter(
+    df,
+    x='first_scrn',  # X축: 개봉일 스크린수
+    y='total_audi',  # Y축: 총 관객수
+    size='first_week_audi',  # 버블 크기: 개봉 첫 주 관객수
+    color='genre',  # 점 색상: 장르별 구분
+    hover_name='movieNm',  # 마우스 호버 시 영화명 노출
+    hover_data={
+        'first_scrn': ':,',
+        'total_audi': ':,',
+        'first_week_audi': ':,',
+        'genre': True,
+    },
+    labels={
+        'first_scrn': '개봉일 스크린수(개)',
+        'total_audi': '총 관객수(명)',
+        'first_week_audi': '개봉 첫 주 관객수(명)',
+        'genre': '장르',
+    },
+    title="스크린수 대비 총 관객수 버블 차트 (버블 크기: 개봉 첫 주 관객수)",
+)
+
+# 버블 크기 비율 스케일 조정 (시각적 균형감 유지)
+fig6.update_traces(
+    marker=dict(
+        sizeref=2 * max(df['first_week_audi']) / (40**2),
+        sizemode='area',
+        opacity=0.7,
+    )
+)
+
+fig6.update_layout(height=550, xaxis_tickformat=',', yaxis_tickformat=',')
+
+st.plotly_chart(fig6, use_container_width=True)
+
+# 인사이트 설명 문구
+st.markdown(
+    """
+<div class="insight-box">
+    <div class="insight-title">💡 이 그래프로 알 수 있는 것</div>
+    <div class="insight-text">
+        개봉일 스크린수와 최종 관객수 간 관계에 <b>개봉 첫 주 관객수(버블 크기)</b> 차원을 추가함으로써, 초기 확보한 스크린이 첫 주 흥행 파급력으로 연결되었는지, 그리고 첫 주 관객 동원력이 최종 관객수까지 이어졌는지를 입체적으로 파악할 수 있습니다.
+    </div>
+</div>
+""",
+    unsafe_allow_html=True,
+)
