@@ -435,3 +435,49 @@ st.markdown(
 """,
     unsafe_allow_html=True,
 )
+import plotly.express as px
+import streamlit as st
+
+# -----------------------------------------------------------------------------
+# 5. 주요 장르(10편 이상)별 총 관객수 분포 (박스 플롯)
+# -----------------------------------------------------------------------------
+st.subheader("5. 📦 주요 장르별 총 관객수 분포 (박스 플롯)")
+
+# 1) 영화 수 10편 이상인 장르 추출 및 필터링
+genre_counts_df = df['genre'].value_counts()
+major_genres = genre_counts_df[genre_counts_df >= 10].index.tolist()
+df_major = df[df['genre'].isin(major_genres)].copy()
+
+# 2) 박스 플롯 생성
+fig5 = px.box(
+    df_major,
+    x='genre',
+    y='total_audi',
+    color='genre',
+    hover_name='movieNm',  # 마우스 올렸을 때 영화명 노출
+    hover_data={'total_audi': ':,', 'first_scrn': ':,', 'days_in_top10': True},
+    labels={'genre': '장르', 'total_audi': '총 관객수(명)'},
+    title=f"주요 장르(10편 이상 보유 장르 {len(major_genres)}개)의 총 관객수 박스 플롯",
+)
+
+# 3) 상자 밖으로 튀는 이상치(outliers) 점만 표시 설정
+fig5.update_traces(
+    boxpoints='outliers'  # 상자 범위를 벗어난 이상치 점에만 마우스 툴팁 적용
+)
+
+fig5.update_layout(showlegend=False, height=500, yaxis_tickformat=',')
+
+st.plotly_chart(fig5, use_container_width=True)
+
+# 인사이트 설명 문구
+st.markdown(
+    """
+<div class="insight-box">
+    <div class="insight-title">💡 이 그래프로 알 수 있는 것</div>
+    <div class="insight-text">
+        표본 수가 적은 단발성 장르를 제외하고 10편 이상 제작된 주요 장르를 비교하여, 각 장르의 일반적인 흥행 분포(중앙값 및 사분위수)를 안정적으로 확인할 수 있습니다. 특히 상자 밖으로 튀는 아웃라이어 점에 마우스를 올리면 해당 장르의 흥행 기록을 크게 상회한 개별 슈퍼 흥행작의 이름을 직접 파악할 수 있습니다.
+    </div>
+</div>
+""",
+    unsafe_allow_html=True,
+)
