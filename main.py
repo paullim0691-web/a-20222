@@ -555,3 +555,51 @@ st.markdown(
 """,
     unsafe_allow_html=True,
 )
+
+
+
+
+
+
+import plotly.express as px
+import streamlit as st
+
+# -----------------------------------------------------------------------------
+# 7. 제작 국가 및 장르별 영화 편수 분포 (선버스트 차트)
+# -----------------------------------------------------------------------------
+st.subheader("7. ☀️ 제작 국가 및 장르별 영화 편수 분포 (선버스트 차트)")
+
+# 계층 구조 표현을 위한 영화 편수(카운트) 열 준비
+df_sunburst = df.copy()
+df_sunburst['movie_count'] = 1
+
+fig7 = px.sunburst(
+    df_sunburst,
+    path=['nation', 'genre'],  # 국가(안쪽) -> 장르(바깥쪽) 계층 구조
+    values='movie_count',  # 조각 크기: 영화 편수
+    color='nation',  # 국가별 색상 구분
+    color_discrete_sequence=px.colors.qualitative.Pastel,
+    title="제작 국가 → 장르 계층 구조 (칸 크기: 영화 편수)",
+)
+
+fig7.update_traces(
+    textinfo="label+value+percent entry",
+    hovertemplate="<b>%{label}</b><br>영화 편수: %{value}편<br>상위 대비 비율: %{percentEntry:.1%}<extra></extra>",
+)
+
+fig7.update_layout(margin=dict(t=50, b=20, l=20, r=20), height=550)
+
+st.plotly_chart(fig7, use_container_width=True)
+
+# 인사이트 설명 박스
+st.markdown(
+    """
+<div class="insight-box">
+    <div class="insight-title">💡 이 그래프로 알 수 있는 것</div>
+    <div class="insight-text">
+        제작 국가(nation)에서 장르(genre)로 이어지는 계층적 원형 구성을 통해, 각 국가별로 어떤 장르의 영화가 시장 점유율(영화 편수)을 차지하고 있는지 한눈에 파악할 수 있습니다. 안쪽 원의 국가 영역을 클릭하면 해당 국가의 장르 비중으로 시각적으로 확대(Drill-down)하여 관찰할 수 있습니다.
+    </div>
+</div>
+""",
+    unsafe_allow_html=True,
+)
