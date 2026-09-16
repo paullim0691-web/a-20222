@@ -420,43 +420,67 @@ st.markdown("""
 st.markdown("---")
 
 # -----------------------------------------------------------------------------
-# 8. 개봉일 산점도 (개봉일에 따른 첫 주 관객 변화)
+# 8. 개봉 시기별 첫 주 관객수 분석 (개선 버전)
 # -----------------------------------------------------------------------------
-st.subheader("8. 📈 개봉일에 따라 첫 주 관객이 차이가 많이 날까")
+st.subheader("8. 📈 개봉 시기(월/계절)에 따른 첫 주 관객수 패턴 분석")
 
-fig8 = px.scatter(
-    df,
-    x='openDt',
-    y='first_week_audi',
-    color='genre',
-    hover_name='movieNm',
-    hover_data={'openDt': '|%Y-%m-%d', 'first_week_audi': ':,', 'genre': True},
-    labels={
-        'openDt': '개봉일',
-        'first_week_audi': '개봉 첫 주 관객수(명)',
-        'genre': '장르'
-    },
-    title="개봉일에 따라 첫 주 관객이 차이가 많이 날까"
-)
+# 분석용 파생 변수 생성
+df_date = df.dropna(subset=['openDt']).copy()
+df_date['open_month'] = df_date['openDt'].dt.month
+df_date['open_year'] = df_date['openDt'].dt.year
 
-fig8.update_traces(
-    marker=dict(size=9, opacity=0.8)
-)
+# 계절 매핑 함수
+def get_season(month):
+    if month in [3, 4, 5]: return '봄(3~5월)'
+    elif month in [6, 7, 8]: return '여름 성수기(6~8월)'
+    elif month in [9, 10, 11]: return '가을(9~11월)'
+    else: return '겨울/연말 성수기(12~2월)'
 
-fig8.update_layout(
-    height=520,
-    xaxis_title="개봉일",
-    yaxis_title="개봉 첫 주 관객수(명)",
-    yaxis_tickformat=','
-)
+df_date['season'] = df_date['open_month'].apply(get_season)
 
-st.plotly_chart(fig8, use_container_width=True)
+# 서브 탭으로 보기 방식 분리
+tab1, tab2 = st.tabs(["📅 월별 관객 분포 (박스플롯)", "🗓️ 연도별-월별 히트맵"])
+
+with tab1:
+    fig8_1 = px.box(
+        df_date.sort_values('open_month'),
+        x='open_month',
+        y='first_week_audi',
+        color='season',
+        hover_name='movieNm',
+        points="all", # 모든 개별 영화 점 함께 표시
+        labels={'open_month': '개봉 월', 'first_week_audi': '개봉 첫 주 관객수(명)', 'season': '시즌'},
+        title="개봉 월별 첫 주 관객수 분포 (성수기 vs 비성수기 비교)"
+    )
+    fig8_1.update_layout(height=500, yaxis_tickformat=',', xaxis=dict(dtick=1))
+    st.plotly_chart(fig8_1, use_container_width=True)
+
+with tab2:
+    # 연도-월 피벗 테이블 생성
+    heatmap_data = df_date.pivot_table(
+        index='open_year', 
+        columns='open_month', 
+        values='first_week_audi', 
+        aggfunc='mean'
+    ).fillna(0)
+
+    fig8_2 = px.imshow(
+        heatmap_data,
+        labels=dict(x="개봉 월", y="개봉 연도", color="평균 첫 주 관객수"),
+        x=heatmap_data.columns,
+        y=heatmap_data.index,
+        color_continuous_scale="Viridis",
+        title="연도 및 월별 평균 첫 주 관객수 히트맵"
+    )
+    fig8_2.update_layout(height=450)
+    st.plotly_chart(fig8_2, use_container_width=True)
 
 st.markdown("""
 <div class="insight-box">
-    <div class="insight-title">💡 이 그래프로 알 수 있는 것</div>
+    <div class="insight-title">💡 관객수-개봉일 분석을 위한 주요 인사이트 체크포인트</div>
     <div class="insight-text">
-        시계열 산점도를 통해 개봉 시점(연도별/계절별/월별)에 따라 개봉 첫 주 관객 수의 분포 추이와 변동 폭을 확인할 수 있습니다. 특정 성수기(여름 휴가철, 명절 등) 시점에 개봉한 작품들의 첫 주 관객 동원력이 크게 집중되었는지를 직관적으로 살펴볼 수 있습니다.
+        1. <b>성수기 프리미엄 확인</b>: 여름(7~8월)과 연말/설날(12~2월) 시기에 상단 이상치(대작 흥행작)가 집중되는지 관찰합니다.<br>
+        2. <b>비성수기 입소문작 발굴</b>: 3~4월이나 10~11월 등 비성수기에 개봉했음에도 첫 주 관객수가 높게 나온 작품의 특성(스크린 독점도, 장르 특성)을 파악합니다.
     </div>
 </div>
 """, unsafe_allow_html=True)
