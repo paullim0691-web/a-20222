@@ -13,7 +13,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 커스텀 CSS (깔끔하고 세련된 카드 레이아웃 스타일)
+# 커스텀 CSS
 st.markdown("""
 <style>
     .main-title {
@@ -68,9 +68,10 @@ def load_data():
     # 장르 전처리: 세로막대(|) 기호로 여러 개 적힌 영화는 첫 번째 장르만 추출
     df['genre'] = df['genre'].astype(str).apply(lambda x: x.split('|')[0] if '|' in x else x)
     
-    # 날짜형 변환 (openDt 컬럼)
+    # 날짜형 변환: 정수/실수 형태의 YYYYMMDD 값을 텍스트 정제 후 날짜형으로 변환
     if 'openDt' in df.columns:
-        df['openDt'] = pd.to_datetime(df['openDt'], errors='coerce')
+        clean_open_dt = df['openDt'].astype(str).str.replace('-', '').str.split('.').str[0]
+        df['openDt'] = pd.to_datetime(clean_open_dt, format='%Y%m%d', errors='coerce')
     
     # 숫자형 컬럼 변환
     numeric_cols = ['first_scrn', 'first_show', 'first_week_audi', 'total_audi', 'days_in_top10']
@@ -419,7 +420,7 @@ st.markdown("""
 st.markdown("---")
 
 # -----------------------------------------------------------------------------
-# 8. 시계열 산점도 (개봉일에 따른 첫 주 관객 변화 - 새로 추가된 그래프)
+# 8. 개봉일 산점도 (개봉일에 따른 첫 주 관객 변화)
 # -----------------------------------------------------------------------------
 st.subheader("8. 📈 개봉일에 따라 첫 주 관객이 차이가 많이 날까")
 
