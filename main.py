@@ -485,53 +485,44 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-
 # -----------------------------------------------------------------------------
-# 8. 제작 국가와 장르의 상관관계 분석
+# 8. 제작 국가별 주요 장르 비중 (쉽게 보는 누적 막대 그래프)
 # -----------------------------------------------------------------------------
-st.subheader("8. 🗺️ 제작 국가와 장르 간의 연관성 분석")
+st.subheader("8. 📊 제작 국가별로 어떤 장르를 많이 만들었을까?")
 
-# 국가 및 장르 교차표 생성 (빈도수)
-ct_data = pd.crosstab(df['nation'], df['genre'])
+# 국가별-장르별 영화 편수 집계
+df_nation_genre = df.groupby(['nation', 'genre']).size().reset_index(name='count')
 
-# 탭 구성: 히트맵 vs 비중(백분율) 히트맵
-tab1, tab2 = st.tabs(["📊 영화 편수 기준 히트맵", " % 국가별 장르 비중(%)"])
+fig8 = px.bar(
+    df_nation_genre,
+    x='nation',
+    y='count',
+    color='genre',
+    title="제작 국가별 장르 구성 비율 (막대 길원: 영화 편수)",
+    labels={'nation': '제작 국가', 'count': '영화 편수', 'genre': '장르'},
+    color_discrete_sequence=px.colors.qualitative.Set3
+)
 
-with tab1:
-    fig8_1 = px.imshow(
-        ct_data,
-        labels=dict(x="장르", y="제작 국가", color="영화 편수"),
-        x=ct_data.columns,
-        y=ct_data.index,
-        color_continuous_scale="Blues",
-        text_auto=True,
-        title="국가별 장르 제작 편수 교차표"
-    )
-    fig8_1.update_layout(height=500)
-    st.plotly_chart(fig8_1, use_container_width=True)
+fig8.update_traces(
+    hovertemplate="<b>국가: %{x}</b><br>장르: %{fullData.name}<br>편수: %{y}편<extra></extra>"
+)
 
-with tab2:
-    # 국가별 행 합계 기준 백분율 계산
-    ct_prop = ct_data.div(ct_data.sum(axis=1), axis=0) * 100
-    
-    fig8_2 = px.imshow(
-        ct_prop,
-        labels=dict(x="장르", y="제작 국가", color="비중 (%)"),
-        x=ct_prop.columns,
-        y=ct_prop.index,
-        color_continuous_scale="Purples",
-        text_auto=".1f",
-        title="국가 내 장르 점유율 히트맵 (%)"
-    )
-    fig8_2.update_layout(height=500)
-    st.plotly_chart(fig8_2, use_container_width=True)
+fig8.update_layout(
+    height=500,
+    xaxis_title="제작 국가",
+    yaxis_title="영화 편수(편)",
+    barmode='stack',  # 막대를 위로 쌓아 국가별 총 편수와 장르 비율을 동시에 표현
+    legend=dict(title="장르 목록", orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5)
+)
+
+st.plotly_chart(fig8, use_container_width=True)
 
 st.markdown("""
 <div class="insight-box">
-    <div class="insight-title">💡 이 그래프로 알 수 있는 것</div>
+    <div class="insight-title">💡 처음 보는 사람을 위한 그래프 읽는 법</div>
     <div class="insight-text">
-        1. <b>국가별 주력 장르 파악</b>: 한국, 미국, 일본 등 각 국가가 어떤 장르(예: 한국-드라마/범죄, 미국-액션/SF, 일본-애니메이션)에 집중되어 있는지 제작 구조의 차이를 직관적으로 비교할 수 있습니다.<br>
-        2. <b>장르 다양성 확인</b>: 특정 국가가 특정 장르에 쏠려 있는지, 혹은 여러 장르에 고르게 분산되어 있는지 제작 스펙트럼의 폭을 파악할 수 있습니다.
+        * <b>막대 전체 높이</b>: 해당 국가가 만든 전체 영화 수입니다.<br>
+        * <b>막대 안의 색상 조각</b>: 어떤 장르가 해당 국가에서 가장 큰 비중을 차지하는지 색상별 영역 크기로 바로 비교할 수 있습니다.
     </div>
 </div>
 """, unsafe_allow_html=True)
